@@ -28,6 +28,8 @@ private:
     //ОКНА
     //Генерация окна входа в тест
     void generateWindow_Input(); //Функция генрации окна входа в тест
+    void Fill_Map_Topic(); //Заполнение мапы тем
+
 
     //Генерация окна начала теста
     void generateWindow_Instruction_Test(); //Функция генерации окна начала теста
@@ -35,9 +37,9 @@ private:
     QTextEdit* get_TextEdit_Count_Question(); //Создание поля количества вопросов
     QPushButton* get_PushButton_Start_Test();   //Создание кнопки начать тест с привязкой клика
 
+
     //Генерация окон теста
     void generateWindow_Test(); //Функция генерации окон теста
-    void Fill_Map_Topic(); //Заполнение мапы тем
     QString get_Adress_Random_Question();
     QStringList get_QStringList_line_in_text( const QString& adress );
     void set_TextEdit_in_layout(); //Вывод текста вопроса на экран
@@ -71,17 +73,11 @@ private:
     QWidget *window = new QWidget; //Само окно
     QVBoxLayout *layout = new QVBoxLayout;
 
-
     bool flag_input_window = false;
     bool flag_instuction_window = false;
 
-
-
-
-
     QString FIO;
     QString Instruction;
-
 
 
     QMap< QString, int > map_topic; //мапа тем

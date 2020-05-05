@@ -1,8 +1,5 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include <QMessageBox>
-#include <string>
-
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -12,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     window->setLayout( layout );
     this->setCentralWidget( window );
+    this->setStyleSheet( "QWidget { background-color: white; }" );
     generateWindow_Input();
 }
 
@@ -19,7 +17,6 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
-
 
 //ПОСТРОЕНИЕ ОКНА
 //Генерация окна входа
@@ -50,6 +47,73 @@ void MainWindow::generateWindow_Input()
     //Построение мапы вопросов
     Fill_Map_Topic();
 }
+
+
+//Функция заполнения мапы с названиями тем и количеством вопросов
+//Сделано для облегчения поиска файлов( хранить несколько названий тем и кол-ва вопросов менее затратно, чем хранить 500строк адресов )
+void MainWindow::Fill_Map_Topic()
+{
+    int current_all_question = 0;
+    QDir dir_main; //Прописываем главный путь откуда искать( У нас папка "Вопросы" лежит в билде )
+
+    dir_main.setPath( "Вопросы" );
+
+    QStringList namesOfDirectories_in_main = dir_main.entryList(); //Получаем список тем в папке "Вопросы"
+    //namesOfDirectories_in_main.removeFirst();
+    //namesOfDirectories_in_main.removeFirst(); // Удаляем первые два елемента "."  и ".."
+
+    //Идем по темам, открываем все вопросы и проверяем их на валидность, а так же считаем общее число вопросов
+     for ( int i=0; i < namesOfDirectories_in_main.size(); ++i )
+     {
+         //если не находим точек в названии файла, т.е. это не расширение, то значит это потенциальная папка с темой, значит заходим
+        if( namesOfDirectories_in_main[ i ].indexOf( "." ) == - 1 )
+        {
+            QString name_directory = namesOfDirectories_in_main[ i ]; //сохраняем название темы, перед входом в папку
+
+            dir_main.cd( namesOfDirectories_in_main[ i ] ); //вход в директорию
+            QStringList namesOfQuestion_in_subject = dir_main.entryList(); //создание листа входящих файлов
+            namesOfQuestion_in_subject.removeFirst();
+            namesOfQuestion_in_subject.removeFirst(); // Удаляем первые два елемента "."  и ".."
+
+            //Так как в каждой теме вопросы по папкам, для удобства хранения файла и картинки вместе с ним, то заходим в каждую потенциальную папку
+            for( int j = 0; j < namesOfQuestion_in_subject.size(); ++j )
+            {
+                //если не находим точек в названии файла, т.е. это не расширение, то значит это папка с вопросом, значит заходим
+                if( namesOfQuestion_in_subject[ j ].indexOf( "." ) == - 1 )
+                {
+                    dir_main.cd(  namesOfQuestion_in_subject[ j ] ); //Заходим в вопрос
+                    QStringList files_in_question = dir_main.entryList(); //Получаем лист файлов в папке с вопросом
+
+                    //ищем в листе файл "Вопрос.txt"
+                    for( const auto& files : files_in_question )
+                    {
+                        //если находим, то увеличиваем общий счетчик и добавляем в мапу
+                        if( files == "Вопрос.txt")
+                        {
+                            ++current_all_question;
+
+                            if( map_topic.find( name_directory ) == map_topic.end() )
+                            {
+                                map_topic[ name_directory ] = 1;
+                            }
+                            else
+                            {
+                                ++map_topic[ name_directory ];
+                            }
+
+                            break;
+                        }
+                    }
+                    dir_main.cdUp(); //подымаемся из папки вопроса обратно в папку со всеми вопросами темы
+                }
+            }
+            dir_main.cdUp(); //подымаемся из папки темы в главную папку с темами
+        }
+     }
+
+     all_count_question_in_directory = current_all_question;
+}
+
 
 //Генерация окна "Инструкция_Тест"
 void MainWindow::generateWindow_Instruction_Test()
@@ -134,6 +198,23 @@ QTextEdit* MainWindow::get_TextEdit_Count_Question()
     return result_text_count_question;
 }
 
+//Функция создания кнопки начать текст с привязкой клика
+QPushButton* MainWindow::get_PushButton_Start_Test()
+{
+    QPushButton *result_pushButtom_start_test = new QPushButton;
+
+    result_pushButtom_start_test->setMinimumHeight( this->size().height() * 5 / 100 < 25 ? 25 :  this->size().height() * 5 / 100 );
+
+    QString font_size = "font: " + QString::number( ( this->size().height() * 5 / 100 < 25 ? 25 :  this->size().height() * 5 / 100 ) * 1 / 2 - 1 ) + "pt \"Arial\";"; //+
+                                    //"background-color:grey;";
+    result_pushButtom_start_test->setStyleSheet( font_size );
+    result_pushButtom_start_test->setText( "Начать тест" );
+
+    connect( result_pushButtom_start_test, SIGNAL(clicked()), this, SLOT( on_pushButton_Start_Test_clicked() ) );
+
+    return result_pushButtom_start_test;
+}
+
 
 //Генерация окон самого теста
 void MainWindow::generateWindow_Test()
@@ -176,90 +257,6 @@ void MainWindow::generateWindow_Test()
     }
 }
 
-
-//Функция заполнения мапы с названиями тем и количеством вопросов
-//Сделано для облегчения поиска файлов( хранить несколько названий тем и кол-ва вопросов менее затратно, чем хранить 500строк адресов )
-void MainWindow::Fill_Map_Topic()
-{
-    int current_all_question = 0;
-    QDir dir_main("Вопросы"); //Прописываем главный путь откуда искать( У нас папка "Вопросы" лежит в билде )
-
-    QStringList namesOfDirectories_in_main = dir_main.entryList(); //Получаем список тем в папке "Вопросы"
-    namesOfDirectories_in_main.removeFirst();
-    namesOfDirectories_in_main.removeFirst(); // Удаляем первые два елемента "."  и ".."
-
-    //Идем по темам, открываем все вопросы и проверяем их на валидность, а так же считаем общее число вопросов
-     for ( int i=0; i < namesOfDirectories_in_main.size(); ++i )
-     {
-         //если не находим точек в названии файла, т.е. это не расширение, то значит это потенциальная папка с темой, значит заходим
-        if( namesOfDirectories_in_main[ i ].indexOf( "." ) == - 1 )
-        {
-            QString name_directory = namesOfDirectories_in_main[ i ]; //сохраняем название темы, перед входом в папку
-
-            dir_main.cd( namesOfDirectories_in_main[ i ] ); //вход в директорию
-            QStringList namesOfQuestion_in_subject = dir_main.entryList(); //создание листа входящих файлов
-            namesOfQuestion_in_subject.removeFirst();
-            namesOfQuestion_in_subject.removeFirst(); // Удаляем первые два елемента "."  и ".."
-
-            //Так как в каждой теме вопросы по папкам, для удобства хранения файла и картинки вместе с ним, то заходим в каждую потенциальную папку
-            for( int j = 0; j < namesOfQuestion_in_subject.size(); ++j )
-            {
-                //если не находим точек в названии файла, т.е. это не расширение, то значит это папка с вопросом, значит заходим
-                if( namesOfQuestion_in_subject[ j ].indexOf( "." ) == - 1 )
-                {
-                    dir_main.cd(  namesOfQuestion_in_subject[ j ] ); //Заходим в вопрос
-                    QStringList files_in_question = dir_main.entryList(); //Получаем лист файлов в папке с вопросом
-
-                    //ищем в листе файл "Вопрос.txt"
-                    for( const auto& files : files_in_question )
-                    {
-                        //если находим, то увеличиваем общий счетчик и добавляем в мапу
-                        if( files == "Вопрос.txt")
-                        {
-                            ++current_all_question;
-
-                            if( map_topic.find( name_directory ) == map_topic.end() )
-                            {
-                                map_topic[ name_directory ] = 1;
-                            }
-                            else
-                            {
-                                ++map_topic[ name_directory ];
-                            }
-
-                            break;
-                        }
-                    }
-                    dir_main.cdUp(); //подымаемся из папки вопроса обратно в папку со всеми вопросами темы
-                }
-            }
-            dir_main.cdUp(); //подымаемся из папки темы в главную папку с темами
-        }
-     }
-
-     all_count_question_in_directory = current_all_question;
-}
-
-
-
-
-
-//Функция подсчета результатов теста
-double MainWindow::set_Result_Test()
-{
-    double procent_result = 0;
-    for( auto it = map_random_question.begin(); it != map_random_question.end(); ++it )
-    {
-        if( it.value() )
-        {
-            ++procent_result;
-        }
-    }
-
-    return  procent_result / map_random_question.size() * 5;
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Получение рандомного вопроса из имеющихся и проверкой на использованный вопрос
 QString MainWindow::get_Adress_Random_Question()
 {
@@ -288,41 +285,46 @@ QString MainWindow::get_Adress_Random_Question()
         }
 
         //Начинаем поиск вопроса в папке темы
-        QDir dir_main("Вопросы/" + topic_in_directory );
+        QDir dir_main;
+        dir_main.setPath( "Вопросы/" + topic_in_directory );
 
         QStringList namesOfQuestion_in_subject = dir_main.entryList(); //создание листа входящих файлов
-        namesOfQuestion_in_subject.removeFirst();
-        namesOfQuestion_in_subject.removeFirst(); // Удаляем первые два елемента "."  и ".."
-
-        //Так как в каждой теме вопросы по папкам, для удобства хранения файла и картинки вместе с ним, то заходим в каждую потенциальную папку
-
-        if( number_random_question > 0 && number_random_question <= namesOfQuestion_in_subject.size() )
+        if(  namesOfQuestion_in_subject.size() > 2 )
         {
-            --number_random_question;
-            if( namesOfQuestion_in_subject[ number_random_question ].indexOf( "." ) == - 1 )
+            namesOfQuestion_in_subject.removeFirst();
+            namesOfQuestion_in_subject.removeFirst(); // Удаляем первые два елемента "."  и ".."
+
+            //Так как в каждой теме вопросы по папкам, для удобства хранения файла и картинки вместе с ним, то заходим в каждую потенциальную папку
+
+            if( number_random_question > 0 && number_random_question <= namesOfQuestion_in_subject.size() )
             {
-                dir_main.cd(  namesOfQuestion_in_subject[ number_random_question ] ); //Заходим в вопрос
-
-                QStringList files_in_question = dir_main.entryList(); //Получаем лист файлов в папке с вопросом
-
-                //ищем в листе файл "Вопрос.txt"
-                for( const auto& files : files_in_question )
+                --number_random_question;
+                if( namesOfQuestion_in_subject[ number_random_question ].indexOf( "." ) == - 1 )
                 {
-                    //если находим, то увеличиваем общий счетчик и добавляем в мапу
-                    if( files == "Вопрос.txt")
+                    dir_main.cd(  namesOfQuestion_in_subject[ number_random_question ] ); //Заходим в вопрос
+
+                    QStringList files_in_question = dir_main.entryList(); //Получаем лист файлов в папке с вопросом
+
+                    //ищем в листе файл "Вопрос.txt"
+                    for( const auto& files : files_in_question )
                     {
-                        QString path_current_random_question = "Вопросы/" + topic_in_directory + "/" + namesOfQuestion_in_subject[ number_random_question ] + "/" ;
-                        if( map_random_question.find( path_current_random_question ) == map_random_question.end() )
+                        //если находим, то увеличиваем общий счетчик и добавляем в мапу
+                        if( files == "Вопрос.txt")
                         {
-                            map_random_question[ path_current_random_question ] = false;
-                            result = path_current_random_question;
-                            flag_result = true;
+                            QString path_current_random_question = "Вопросы/" + topic_in_directory + "/" + namesOfQuestion_in_subject[ number_random_question ] + "/" ;
+                            if( map_random_question.find( path_current_random_question ) == map_random_question.end() )
+                            {
+                                map_random_question[ path_current_random_question ] = false;
+                                result = path_current_random_question;
+                                flag_result = true;
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
             }
         }
+
     }
 
     return  result;
@@ -377,6 +379,7 @@ void MainWindow::set_TextEdit_in_layout()
                                                         "";
     text_edit->setStyleSheet( setHTML_properties );
     text_edit->setFrameStyle( QFrame::NoFrame );
+    text_edit->setReadOnly( true );
     text_edit->setText( text_question );
     layout->addWidget( text_edit );
 }
@@ -493,6 +496,20 @@ void MainWindow::set_Button_continue() //Установка кнопки "Сле
      connect(button, SIGNAL(clicked()), this, SLOT( on_pushButton_give_answer() ));
 }
 
+//Функция подсчета результатов теста
+double MainWindow::set_Result_Test()
+{
+    double procent_result = 0;
+    for( auto it = map_random_question.begin(); it != map_random_question.end(); ++it )
+    {
+        if( it.value() )
+        {
+            ++procent_result;
+        }
+    }
+
+    return  procent_result / map_random_question.size() * 5;
+}
 
 //Проверка ответа по текущему вопросу
 bool MainWindow::check_Answer_Question()
@@ -550,6 +567,11 @@ void MainWindow::generateWindow_Result()
     text_result->append( FIO + "\n" );
     text_result->append( "Ваш результат = " + QString::number( set_Result_Test() ) + "\n" );
 
+    for( auto it = map_random_question.begin(); it != map_random_question.end(); ++it )
+    {
+        text_result->append( it.key() + " = " + ( it.value() == true ? "Верно" : "Неверно" ) + "\n" );
+    }
+
     layout->addWidget( text_result );
 
     map_topic.clear();
@@ -570,7 +592,6 @@ void MainWindow::delete_Widget_Layout()
     }
 }
 
-
 //Функция вывода информирующего сообщения на экран
 void MainWindow::message_Box_Warning( const QString &message )
 {
@@ -580,18 +601,19 @@ void MainWindow::message_Box_Warning( const QString &message )
     msgBox.exec();
 }
 
-
 //Отлавливание ентера на первых двух окнах
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
     if( flag_input_window )
     {
-        QTextEdit *te =  qobject_cast<QTextEdit *>( layout->itemAt(1)->widget() );
-        if( te )
+
+        if( event->type() == QKeyEvent::KeyPress )
         {
-            if(watched == te )
+
+            QTextEdit *te =  qobject_cast<QTextEdit *>( layout->itemAt(1)->widget() );
+            if( te )
             {
-                if(event->type() == QKeyEvent::KeyPress)
+                if( watched == te )
                 {
                     QKeyEvent * ke = static_cast<QKeyEvent*>(event);
                     if(ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter)
@@ -612,12 +634,13 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
     }
     else if( flag_instuction_window )
     {
-        QPlainTextEdit *te =  qobject_cast<QPlainTextEdit *>( layout->itemAt(1)->widget() );
-        if( te )
+
+        if(event->type() == QKeyEvent::KeyPress)
         {
-            if(watched == te )
+            QTextEdit *te =  qobject_cast<QTextEdit *>( layout->itemAt(1)->widget() );
+            if( te )
             {
-                if(event->type() == QKeyEvent::KeyPress)
+                if( watched == te )
                 {
                     QKeyEvent * ke = static_cast<QKeyEvent*>(event);
                     if(ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter)
@@ -636,6 +659,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
             }
         }
     }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 
@@ -653,10 +677,6 @@ void MainWindow::resizeEvent(QResizeEvent *e)
          resizeInstructWin_instuction_te( e );
         resizeInstructWin_count_te( e );
         resizeInstructWin_start_pb( e );
-    }
-    else
-    {
-
     }
 }
 
@@ -705,8 +725,6 @@ void MainWindow::resizeInpWin_continue_pb( QResizeEvent *e )
     pb->setStyleSheet( font_size );
 }
 
-
-
 //Функции перерисовки окна инструкции
 //Функция перерисовки поля с инструкцией
 void MainWindow::resizeInstructWin_instuction_te( QResizeEvent *e )
@@ -752,28 +770,10 @@ void MainWindow::resizeInstructWin_start_pb( QResizeEvent *e )
     pb->setStyleSheet( font_size );
 }
 
-//Функция создания кнопки начать текст с привязкой клика
-QPushButton* MainWindow::get_PushButton_Start_Test()
-{
-    QPushButton *result_pushButtom_start_test = new QPushButton;
-
-    result_pushButtom_start_test->setMinimumHeight( this->size().height() * 5 / 100 < 25 ? 25 :  this->size().height() * 5 / 100 );
-
-    QString font_size = "font: " + QString::number( ( this->size().height() * 5 / 100 < 25 ? 25 :  this->size().height() * 5 / 100 ) * 1 / 2 - 1 ) + "pt \"Arial\";";
-    result_pushButtom_start_test->setStyleSheet( font_size );
-    result_pushButtom_start_test->setText( "Начать тест" );
-
-    connect( result_pushButtom_start_test, SIGNAL(clicked()), this, SLOT( on_pushButton_Start_Test_clicked() ) );
-
-    return result_pushButtom_start_test;
-}
-
-
 //КНОПКИ
 //Функция нажатия кнопки продолжить
 void MainWindow::on_pushButton_continue_clicked()
 {
-    flag_input_window = false;
     QTextEdit *te =  qobject_cast<QTextEdit *>( layout->itemAt(1)->widget() );
     if( te )
     {
@@ -783,10 +783,13 @@ void MainWindow::on_pushButton_continue_clicked()
         }
         else
         {
+            flag_input_window = false;
+            flag_instuction_window = true;
             generateWindow_Instruction_Test();
         }
     }
 }
+
 //Функция нажатия кнопки "Начать тест"
 void MainWindow::on_pushButton_Start_Test_clicked()
 {
@@ -812,6 +815,7 @@ void MainWindow::on_pushButton_Start_Test_clicked()
 
     }
 }
+
 
 //Функция нажатия кнопки "Следующий вопрос"
 void MainWindow::on_pushButton_give_answer()
