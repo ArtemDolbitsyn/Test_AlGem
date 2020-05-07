@@ -4,6 +4,10 @@
 #include <QMainWindow>
 #include <QtWidgets>
 
+#include <QFont>
+#include <QSet>
+#include <QMap>
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
@@ -17,9 +21,11 @@ public:
     ~MainWindow();
 
 private slots:
-    void on_pushButton_continue_clicked();
-    void on_pushButton_Start_Test_clicked();
-    void on_pushButton_give_answer();
+    void on_pushButton_continue_clicked(); //Обработчик кнопки "Продолжить" первого окна
+    void on_pushButton_Start_Test_clicked(); //Обработчик кнопки "Начать тест" первого окна
+    void on_pushButton_give_answer(); //Обработчик кнопки дать ответ при каждом вопросе теста
+
+protected:
 
 private:
     Ui::MainWindow *ui;
@@ -68,10 +74,15 @@ private:
     void resizeInstructWin_instuction_te( QResizeEvent *e );
     void resizeInstructWin_count_te( QResizeEvent *e );
     void resizeInstructWin_start_pb( QResizeEvent *e );
+    //Функции перерисовки окон теста
+    void resizeTestWin_text_question();
+
 
     //ПОЛЯ КЛАССА
     QWidget *window = new QWidget; //Само окно
     QVBoxLayout *layout = new QVBoxLayout;
+
+
 
     bool flag_input_window = false;
     bool flag_instuction_window = false;
@@ -80,21 +91,27 @@ private:
     QString Instruction;
 
 
-    QMap< QString, int > map_topic; //мапа тем
+    QMap< QString, QSet< QString > > map_topic; //мапа тем
     int all_count_question_in_directory = 0; //общее количество вопросов
 
     int current_count_question; //количество вопросов в создаваемом тесте
-    int current_question = 1; //текущий вопрос
+    int current_question = 0; //текущий вопрос
 
     QString right_answer;
 
+    QString topic_in_directory;
     QString current_adress;
-    QMap< QString, bool > map_random_question; //мапа рандомных вопросов генерируемых в тесте
-    QPixmap pixmap_in_class;
+    //QMap< QString, bool > map_random_question; //мапа рандомных вопросов генерируемых в тесте
+    QList< QPair< QString, bool > > list_random_question;
+    //QPixmap pixmap_in_class;
 
     QStringList text_file; //лист строк в файле
 
-    QVector< QRadioButton* > vec_ref_rad_but;
+    //QVector< QRadioButton* > vec_ref_rad_but;
+    QVector< QPair < QRadioButton*, QString > > vec_ref_rad_but_and_text;
     QString answer_quest;
+
+    //Поле размера пикселей для читаемого текста
+    int current_size_pixel_read_text;
 };
 #endif // MAINWINDOW_H

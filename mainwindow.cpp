@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -29,7 +31,6 @@ void MainWindow::generateWindow_Input()
     text_welcom->setReadOnly( true );
 
     QTextEdit *text_fio = new QTextEdit;
-    //text_fio->setPlaceholderText( "Введите ФИО..." );
 
     QPushButton* pushButtom_continue = new QPushButton( tr("Продолжить") );
     connect(pushButtom_continue, SIGNAL(clicked()), this, SLOT( on_pushButton_continue_clicked()));
@@ -43,7 +44,6 @@ void MainWindow::generateWindow_Input()
     QTextEdit *te =  qobject_cast<QTextEdit *>( layout->itemAt(1)->widget() );
     te->installEventFilter( this );
 
-    //text_fio->setMaximumHeight( 25 );
     //Построение мапы вопросов
     Fill_Map_Topic();
 }
@@ -72,8 +72,8 @@ void MainWindow::Fill_Map_Topic()
 
             dir_main.cd( namesOfDirectories_in_main[ i ] ); //вход в директорию
             QStringList namesOfQuestion_in_subject = dir_main.entryList(); //создание листа входящих файлов
-            namesOfQuestion_in_subject.removeFirst();
-            namesOfQuestion_in_subject.removeFirst(); // Удаляем первые два елемента "."  и ".."
+            //namesOfQuestion_in_subject.removeFirst();
+            //namesOfQuestion_in_subject.removeFirst(); // Удаляем первые два елемента "."  и ".."
 
             //Так как в каждой теме вопросы по папкам, для удобства хранения файла и картинки вместе с ним, то заходим в каждую потенциальную папку
             for( int j = 0; j < namesOfQuestion_in_subject.size(); ++j )
@@ -92,14 +92,8 @@ void MainWindow::Fill_Map_Topic()
                         {
                             ++current_all_question;
 
-                            if( map_topic.find( name_directory ) == map_topic.end() )
-                            {
-                                map_topic[ name_directory ] = 1;
-                            }
-                            else
-                            {
-                                ++map_topic[ name_directory ];
-                            }
+                            //map_topic[ name_directory ].insert( "Вопросы/" + namesOfDirectories_in_main.at( i ) +"/" + namesOfQuestion_in_subject.at( j ) + "/" );
+                            map_topic[ name_directory ].insert( dir_main.path() + "/" );
 
                             break;
                         }
@@ -221,13 +215,15 @@ void MainWindow::generateWindow_Test()
 {
     this->setWindowTitle("Тест");
     //Вызвать функцию проверки ответа
-    if( !map_random_question.empty() )
-        map_random_question[ current_adress ] = check_Answer_Question();
+    if( !list_random_question.empty() )
+    {
+        list_random_question[ current_question - 1 ].second = check_Answer_Question();
+    }
 
     //Чистим layout
     delete_Widget_Layout();
 
-    if( current_question <= current_count_question )
+    if( current_question < current_count_question )
     {
         ++current_question;
         //Получаем Вопросы/тема/папка с вопросом/
@@ -240,7 +236,7 @@ void MainWindow::generateWindow_Test()
         set_TextEdit_in_layout();
 
         //Ставим картинку если есть
-        set_PixMap_in_layout();
+        //set_PixMap_in_layout();
 
         //Ставим варианты ответа
         set_Variant_Answer();
@@ -250,6 +246,8 @@ void MainWindow::generateWindow_Test()
 
         //Ставим кнопку "Следующий вопрос"
         set_Button_continue();
+
+        resizeTestWin_text_question();
     }
     else
     {
@@ -262,69 +260,38 @@ QString MainWindow::get_Adress_Random_Question()
 {
     QString result;
 
-    bool flag_result = false;
-    while( !flag_result )
+    qsrand( QDateTime::currentMSecsSinceEpoch() );
+    int number_random_question = qrand() % all_count_question_in_directory + 1;
+
+    QMap< QString, QSet< QString > >::Iterator it = map_topic.begin();
+    while( it != map_topic.end() )
     {
-        qsrand( QDateTime::currentMSecsSinceEpoch() );
-        int number_random_question = qrand() % all_count_question_in_directory + 1;
-
-        QString topic_in_directory;
-        QMapIterator<QString, int> it( map_topic );
-        while( it.hasNext() )
+        if( number_random_question > it.value().size() )
         {
-            it.next();
-            if( number_random_question > it.value() )
-            {
-                number_random_question -= it.value();
-            }
-            else
-            {
-                topic_in_directory = it.key();
-                break;
-            }
+            number_random_question -= it.value().size();
         }
-
-        //Начинаем поиск вопроса в папке темы
-        QDir dir_main;
-        dir_main.setPath( "Вопросы/" + topic_in_directory );
-
-        QStringList namesOfQuestion_in_subject = dir_main.entryList(); //создание листа входящих файлов
-        if(  namesOfQuestion_in_subject.size() > 2 )
+        else
         {
-            namesOfQuestion_in_subject.removeFirst();
-            namesOfQuestion_in_subject.removeFirst(); // Удаляем первые два елемента "."  и ".."
-
-            //Так как в каждой теме вопросы по папкам, для удобства хранения файла и картинки вместе с ним, то заходим в каждую потенциальную папку
-
-            if( number_random_question > 0 && number_random_question <= namesOfQuestion_in_subject.size() )
+            QSet< QString >::const_iterator it_set = it.value().begin();
+            int count_q = 0;
+            while ( it_set != it.value().end() )
             {
-                --number_random_question;
-                if( namesOfQuestion_in_subject[ number_random_question ].indexOf( "." ) == - 1 )
+                ++count_q;
+                if( count_q == number_random_question )
                 {
-                    dir_main.cd(  namesOfQuestion_in_subject[ number_random_question ] ); //Заходим в вопрос
+                    result = *it_set;
+                    list_random_question.push_back( QPair< QString, bool >( *it_set, false ) );
+                    topic_in_directory = it.key();
 
-                    QStringList files_in_question = dir_main.entryList(); //Получаем лист файлов в папке с вопросом
-
-                    //ищем в листе файл "Вопрос.txt"
-                    for( const auto& files : files_in_question )
-                    {
-                        //если находим, то увеличиваем общий счетчик и добавляем в мапу
-                        if( files == "Вопрос.txt")
-                        {
-                            QString path_current_random_question = "Вопросы/" + topic_in_directory + "/" + namesOfQuestion_in_subject[ number_random_question ] + "/" ;
-                            if( map_random_question.find( path_current_random_question ) == map_random_question.end() )
-                            {
-                                map_random_question[ path_current_random_question ] = false;
-                                result = path_current_random_question;
-                                flag_result = true;
-                            }
-                            break;
-                        }
-                    }
+                    it.value().remove( *it_set );
+                    --all_count_question_in_directory;
+                    break;
                 }
             }
+            break;
         }
 
+        ++it;
     }
 
     return  result;
@@ -369,19 +336,92 @@ void MainWindow::set_TextEdit_in_layout()
         }
     }
 
-    QString setHTML_properties = "font: " + QString::number(  this->size().height() * 5 / 100 < 25 ? 25 :  this->size().height() * 3 / 100  ) + "pt \"Arial\";" +
-                                                        "background-color:white;" +
-                                                        "" +
-                                                        "" +
-                                                        "" +
-                                                        "" +
-                                                        "" +
-                                                        "";
-    text_edit->setStyleSheet( setHTML_properties );
+    QFont font_1 = text_edit->font();
+    font_1.setPixelSize( 25 );
+    text_edit->setFont( font_1 );
+
     text_edit->setFrameStyle( QFrame::NoFrame );
+    text_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     text_edit->setReadOnly( true );
-    text_edit->setText( text_question );
+
+    text_edit->append("Тема: " + topic_in_directory +"." );
+    text_edit->append( "Вопрос. " + text_question +"\n" );
+
+
+
+    QString picture_adress = "";
+    for( const auto& tmp : text_file )
+    {
+        if( tmp.indexOf( "Адрес картинки:" ) != -1 )
+        {
+            picture_adress = tmp.mid( tmp.indexOf(":") + 1, tmp.size() - 1 - tmp.indexOf(":") ).trimmed();
+            break;
+        }
+    }
+
+    int imageH = 0;
+    if( picture_adress != "-" )
+    {
+        QString path_picture = current_adress + picture_adress;
+        QImage image( path_picture );
+        QTextCursor cursor = text_edit->textCursor();
+        QTextDocument *document = text_edit->document();
+        document->addResource(QTextDocument::ImageResource, QUrl(path_picture), image);
+        cursor.insertImage( path_picture );
+        imageH = image.height();
+        //text_edit->append( "Картинка добавлена");
+    }
+
+    //Подсчет высоты поля TextEdit
+    int height = QFontMetrics(font_1).boundingRect(QRect( 0, 0, window->width() - layout->contentsRect().left() * 2 , window->height() - layout->contentsRect().bottom() * 2 ), Qt::TextWordWrap, text_edit->toPlainText() ).height() + 10;
+
+//    int all_size_text = 0;
+//    QTextBlock text_block = text_edit->document()->begin();
+//    while( text_block.isValid() )
+//    {
+
+//        int max_ascent  = 0;
+//        int max_descent = 0;
+//        int max_leading = 0;
+
+//        int max_height = 0;
+
+//        for (QTextBlock::Iterator fragment_it = text_block.begin(); !(fragment_it.atEnd()); ++fragment_it)
+//        {
+//            QTextFragment fragment = fragment_it.fragment();
+//            QTextCharFormat fragment_format = fragment.charFormat();
+//            QFont fragment_font = fragment_format.font();
+//            QFontMetrics fragment_font_metrics (fragment_font);
+//            max_ascent  = std::max(fragment_font_metrics.ascent(), max_ascent);
+//            max_descent = std::max(fragment_font_metrics.descent(),max_descent);
+
+
+
+//            int current_height = fragment_font_metrics.height();
+//            int current_leading = fragment_font_metrics.leading();
+//                if ( current_height > max_height )
+//                {
+//                    max_height = current_height;
+//                    max_leading = current_leading;
+//                }
+//                else if ( current_height == max_height && current_leading > max_leading )
+//                {
+//                    max_leading = current_leading;
+//                }
+//        }
+//        int max_size =  max_ascent + max_descent + max_leading + 1; // + 1 for the baseline
+//        all_size_text += max_size;
+
+//        text_block = text_block.next();
+//    }
+
+    //text_edit->setMinimumHeight( height  + imageH );
+    //text_edit->setMaximumHeight( height  + imageH );
+    text_edit->setFixedHeight( height + imageH );
+    //text_edit->setFixedHeight( 50 );
+
     layout->addWidget( text_edit );
+
 }
 
 
@@ -399,7 +439,7 @@ void MainWindow::set_PixMap_in_layout() //Вывод картинки на эк�
     }
     if( picture_adress != "" )
     {
-       QString path_picture = "Вопросы/Системы линейных уравнений и их решение методом Гаусса/1/" + picture_adress;
+       QString path_picture = current_adress + picture_adress;
        QPixmap myPixmap( path_picture );
        QLabel *myLabel = new QLabel( this );
        myLabel->setPixmap( myPixmap );
@@ -422,6 +462,10 @@ void MainWindow::set_Variant_Answer() //Вывод вариантов ответ
     if( count_answer == 0 )
     {
         QTextEdit *text_edit_open_question = new QTextEdit( this );
+        QString style =
+                QString( "font: " + QString::number(  current_size_pixel_read_text / 3 ) + "pt \"Arial\";"  ) +
+                QString( "background-color: white;" );// +
+        text_edit_open_question->setStyleSheet( style );
         text_edit_open_question->setPlaceholderText( "Введите ответ..." );
         layout->addWidget( text_edit_open_question );
     }
@@ -444,22 +488,31 @@ void MainWindow::set_Variant_Answer() //Вывод вариантов ответ
         }
 
 
+        QFormLayout *form = new QFormLayout;
 
+        form->setRowWrapPolicy ( QFormLayout :: DontWrapRows );
+        form->setFieldGrowthPolicy ( QFormLayout :: FieldsStayAtSizeHint );
+        form->setLabelAlignment ( Qt :: AlignLeft );
+        form->setVerticalSpacing( 3 );
         for( int i = 0; i < count_answer; ++i )
         {
             QRadioButton *radio1 = new QRadioButton( );
-            radio1->setText( vector_answer_question.at( i ) );
-            vec_ref_rad_but.push_back( radio1 );
+
+            QLabel *label = new QLabel;
+            label->setWordWrap( true );
+            label->setText( vector_answer_question.at( i ) );
+
+            QFont font = label->font();
+            font.setPixelSize( 25 );
+            label->setFont( font );
+
+            form->addRow( radio1, label );
+
+            vec_ref_rad_but_and_text.push_back( QPair< QRadioButton*, QString >( radio1, vector_answer_question.at( i ) ) );
         }
         QString right_answer = vector_answer_question.at( count_answer );
 
-        QVBoxLayout *vbox = new QVBoxLayout;
-        for( const auto& item : vec_ref_rad_but )
-        {
-            vbox->addWidget( item );
-        }
-        vbox->addStretch( 3 );
-        groupBox->setLayout( vbox );
+        groupBox->setLayout( form );
 
         layout->addWidget( groupBox );
     }
@@ -486,6 +539,11 @@ void MainWindow::set_Button_continue() //Установка кнопки "Сле
      QPushButton *button = new QPushButton(this);  // Создаем объект динамической кнопки
      /* Устанавливаем текст с номером этой кнопки
       * */
+     button->setMinimumHeight( this->size().height() * 5 / 100 < 25 ? 25 :  this->size().height() * 5 / 100 );
+
+     QString font_size = "font: " + QString::number( ( this->size().height() * 5 / 100 < 25 ? 25 :  this->size().height() * 5 / 100 ) * 1 / 2 - 1 ) + "pt \"Arial\";"; //+
+                                     //"background-color:grey;";
+     button->setStyleSheet( font_size );
      button->setText( "Следующий вопрос" );
      button->setFixedHeight( 25 );
      /* Добавляем кнопку в слой с вертикальной компоновкой
@@ -500,34 +558,34 @@ void MainWindow::set_Button_continue() //Установка кнопки "Сле
 double MainWindow::set_Result_Test()
 {
     double procent_result = 0;
-    for( auto it = map_random_question.begin(); it != map_random_question.end(); ++it )
+    for( auto it = list_random_question.begin(); it != list_random_question.end(); ++it )
     {
-        if( it.value() )
+        if( it->second )
         {
             ++procent_result;
         }
     }
 
-    return  procent_result / map_random_question.size() * 5;
+    return  procent_result / list_random_question.size() * 5;
 }
 
 //Проверка ответа по текущему вопросу
 bool MainWindow::check_Answer_Question()
 {
     bool result = false;
-    if( vec_ref_rad_but.size() > 0 )
-    {
-        for( const auto& item : vec_ref_rad_but )
+    if( vec_ref_rad_but_and_text.size() > 0 )
+    { 
+        for( const auto& item : vec_ref_rad_but_and_text )
         {
-            if( item->isChecked() )
+            if( item.first->isChecked() )
             {
-                if( item->text() == right_answer )
+                if( item.second == right_answer )
                 {
                     result = true;
                 }
             }
         }
-        vec_ref_rad_but.clear();
+        vec_ref_rad_but_and_text.clear();
     }
     else
     {
@@ -536,14 +594,6 @@ bool MainWindow::check_Answer_Question()
         if( open_answer )
         {
             answer_quest = open_answer->toPlainText();
-        }
-        else
-        {
-            open_answer = qobject_cast< QTextEdit *>(  layout->itemAt( 2 )->widget() );
-            if( open_answer )
-            {
-                answer_quest = open_answer->toPlainText();
-            }
         }
 
         if( answer_quest == right_answer )
@@ -567,15 +617,15 @@ void MainWindow::generateWindow_Result()
     text_result->append( FIO + "\n" );
     text_result->append( "Ваш результат = " + QString::number( set_Result_Test() ) + "\n" );
 
-    for( auto it = map_random_question.begin(); it != map_random_question.end(); ++it )
+    for( auto it = list_random_question.begin(); it != list_random_question.end(); ++it )
     {
-        text_result->append( it.key() + " = " + ( it.value() == true ? "Верно" : "Неверно" ) + "\n" );
+        text_result->append( it->first + " = " + ( it->second == true ? "Верно" : "Неверно" ) + "\n" );
     }
 
     layout->addWidget( text_result );
 
     map_topic.clear();
-    map_random_question.clear();
+    list_random_question.clear();
 
 
 }
@@ -606,10 +656,8 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
     if( flag_input_window )
     {
-
         if( event->type() == QKeyEvent::KeyPress )
         {
-
             QTextEdit *te =  qobject_cast<QTextEdit *>( layout->itemAt(1)->widget() );
             if( te )
             {
@@ -618,16 +666,13 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
                     QKeyEvent * ke = static_cast<QKeyEvent*>(event);
                     if(ke->key() == Qt::Key_Return || ke->key() == Qt::Key_Enter)
                     {
-
-
-                        return true; // do not process this event further
+                        return true;
                     }
                 }
-                return false; // process this event further
+                return false;
             }
             else
             {
-                // pass the event on to the parent class
                 return QMainWindow::eventFilter(watched, event);
             }
         }
@@ -686,19 +731,33 @@ void MainWindow::resizeInpWin_welcom_te( QResizeEvent *e )
 {
     QTextEdit *wte =  qobject_cast<QTextEdit *>( layout->itemAt( 0 )->widget() );
 
-    QString setHTML_properties = "font: " + QString::number(  e->size().height() * 5 / 100 < 25 ? 25 :  e->size().height() * 5 / 100  ) + "pt \"Arial\";" +
-                                                        "background-color:white;" +
-                                                        "" +
-                                                        "" +
-                                                        "" +
-                                                        "" +
-                                                        "" +
-                                                        "";
-    wte->setStyleSheet( setHTML_properties );
+//    QString setHTML_properties = "font: " + QString::number(  wte->height() / 5 / 3  ) + "pt \"Arial\";" +
+//                                                        "background-color:white;" +
+//                                                        "position: absolute;" +
+//                                                        "left: 50%;" +
+//                                                        "top: 50%;" +
+//                                                        "-webkit-transform: translate(-50%, -50%);" +
+//                                                        "-moz-transform: translate(-50%, -50%);" +
+//                                                        "-ms-transform: translate(-50%, -50%);" +
+//                                                        "-o-transform: translate(-50%, -50%);" +
+//                                                        "transform: translate(-50%, -50%);" +
+//                                                        "";
+
+    QSize t2 = wte->size();
+    current_size_pixel_read_text = wte->height() / 5 / 3;
+    //QString str = QString("st") + QString( "fdf");
+    QString style =
+            QString( "font: " + QString::number(  current_size_pixel_read_text ) + "pt \"Arial\";"  ) +
+            QString( "background-color: white;" );// +
+            //QString( "background-image: url( Вопросы/Картинка.jpg);" );
+            //QString( "background-attachment: scroll;" );
+    wte->setStyleSheet ( style );
+    wte->setPlainText( "Добро пожаловать!");
+   // wte->setStyleSheet( setHTML_properties );
     wte->setFrameStyle( QFrame::NoFrame );
     wte->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    wte->setPlainText( "Добро пожаловать!");
+
     wte->setAlignment( Qt::AlignCenter );
 }
 //Перерисовка поля ввода ФИО(второе)
@@ -769,6 +828,58 @@ void MainWindow::resizeInstructWin_start_pb( QResizeEvent *e )
     QString font_size = "font: " + QString::number( ( e->size().height() * 5 / 100 < 25 ? 25 :  e->size().height() * 5 / 100 ) * 1 / 2 - 1 ) + "pt \"Arial\";";
     pb->setStyleSheet( font_size );
 }
+
+
+//Функции перерисовки окон теста
+//Функия перерисовки поля вопроса
+void MainWindow::resizeTestWin_text_question()
+{
+    QTextEdit *text_question = qobject_cast< QTextEdit *>( layout->itemAt( 0 )->widget() );
+    if( text_question )
+    {
+        int all_size_text = 0;
+
+        QTextBlock text_block = text_question->document()->begin();
+        while( text_block.isValid() )
+        {
+            int max_ascent  = 0;
+            int max_descent = 0;
+            int max_leading = 0;
+
+            int max_height = 0;
+
+            for (QTextBlock::Iterator fragment_it = text_block.begin(); !(fragment_it.atEnd()); ++fragment_it)
+            {
+            QTextFragment fragment = fragment_it.fragment();
+            QTextCharFormat fragment_format = fragment.charFormat();
+            QFont fragment_font = fragment_format.font();
+            QFontMetrics fragment_font_metrics (fragment_font);
+            max_ascent  = std::max(fragment_font_metrics.ascent(), max_ascent);
+            max_descent = std::max(fragment_font_metrics.descent(),max_descent);
+
+            int current_height = fragment_font_metrics.height();
+            int current_leading = fragment_font_metrics.leading();
+                if ( current_height > max_height )
+                {
+                    max_height = current_height;
+                    max_leading = current_leading;
+                }
+                else if ( current_height == max_height && current_leading > max_leading )
+                {
+                    max_leading = current_leading;
+                }
+            }
+            int max_size =  max_ascent + max_descent + max_leading + 1; // + 1 for the baseline
+            all_size_text += max_size;
+
+            text_block = text_block.next();
+        }
+         int a = 0;
+    }
+
+}
+
+
 
 //КНОПКИ
 //Функция нажатия кнопки продолжить
