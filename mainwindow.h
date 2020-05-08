@@ -75,7 +75,8 @@ private:
     void resizeInstructWin_count_te( QResizeEvent *e );
     void resizeInstructWin_start_pb( QResizeEvent *e );
     //Функции перерисовки окон теста
-    void resizeTestWin_text_question();
+    void resizeTestWin_text_question( QResizeEvent *e );
+    void resizeTestWin_contpb( QResizeEvent *e );
 
 
     //ПОЛЯ КЛАССА
@@ -86,6 +87,7 @@ private:
 
     bool flag_input_window = false;
     bool flag_instuction_window = false;
+    bool flag_test_window = false;
 
     QString FIO;
     QString Instruction;
@@ -101,9 +103,10 @@ private:
 
     QString topic_in_directory;
     QString current_adress;
-    //QMap< QString, bool > map_random_question; //мапа рандомных вопросов генерируемых в тесте
+    //QMap< QString, QString > map_random_question; //мапа рандомных вопросов генерируемых в тесте c ответам
     QList< QPair< QString, bool > > list_random_question;
-    //QPixmap pixmap_in_class;
+    QMap< QString, QPair< QString, QString > > map_answer;
+    QImage *image_class;
 
     QStringList text_file; //лист строк в файле
 

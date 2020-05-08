@@ -10,6 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     window->setLayout( layout );
+    layout->setSpacing( 3 );
     this->setCentralWidget( window );
     this->setStyleSheet( "QWidget { background-color: white; }" );
     generateWindow_Input();
@@ -246,11 +247,10 @@ void MainWindow::generateWindow_Test()
 
         //Ставим кнопку "Следующий вопрос"
         set_Button_continue();
-
-        resizeTestWin_text_question();
     }
     else
     {
+        flag_test_window = false;
         generateWindow_Result();
     }
 }
@@ -323,57 +323,77 @@ QStringList MainWindow::get_QStringList_line_in_text(const QString &adress)
 void MainWindow::set_TextEdit_in_layout()
 {
     QTextEdit *text_edit = new QTextEdit( this );
-    QString text_question = "";
-    for( const auto& tmp : text_file )
-    {
-        if( tmp.indexOf( "Адрес картинки:" ) == -1 )
-        {
-            text_question += tmp + " ";
-        }
-        else
-        {
-           break;
-        }
-    }
+    QString picture_adress = "";
+    int picture_height = 0;
 
     QFont font_1 = text_edit->font();
     font_1.setPixelSize( 25 );
     text_edit->setFont( font_1 );
 
     text_edit->setFrameStyle( QFrame::NoFrame );
-    text_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    //text_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     text_edit->setReadOnly( true );
 
     text_edit->append("Тема: " + topic_in_directory +"." );
-    text_edit->append( "Вопрос. " + text_question +"\n" );
-
-
-
-    QString picture_adress = "";
-    for( const auto& tmp : text_file )
+    for( int i = 0; i < text_file.size(); ++i  )
     {
-        if( tmp.indexOf( "Адрес картинки:" ) != -1 )
+        if( text_file.at( i ).indexOf( "Варианты ответов:" ) != -1 )
         {
-            picture_adress = tmp.mid( tmp.indexOf(":") + 1, tmp.size() - 1 - tmp.indexOf(":") ).trimmed();
             break;
+        }
+        else if( text_file.at( i ).indexOf( "Адрес картинки:" ) != -1 )
+        {
+            picture_adress = text_file.at( i ).mid( text_file.at( i ).indexOf(":") + 1, text_file.at( i ).size() - 1 - text_file.at( i ).indexOf(":") ).trimmed();
+
+            QString path_picture = current_adress + picture_adress;
+            //QImage image( path_picture );
+            image_class = new QImage( path_picture );
+            if( !image_class->isNull() )
+            {
+                QTextCursor cursor = text_edit->textCursor();
+                //QTextDocument *document = text_edit->document();
+                //document->addResource(QTextDocument::ImageResource, QUrl(path_picture), image_class);
+                cursor.insertImage( path_picture );
+                picture_height = image_class->height();
+            }
+        }
+        else
+        {
+            if( i != text_file.size() - 1 )
+            {
+                if( text_file.at( i + 1 ).indexOf( "Адрес картинки:" ) != -1 )
+                {
+                    picture_adress = text_file.at( i + 1 ).mid( text_file.at( i + 1 ).indexOf(":") + 1, text_file.at( i + 1 ).size() - 1 - text_file.at( i + 1 ).indexOf(":") ).trimmed();
+                    QString path_picture = current_adress + picture_adress;
+                    QImage image( path_picture );
+                    if( !image.isNull() )
+                    {
+                        text_edit->append( text_file.at( i ) + "\n" );
+                    }
+                    else
+                    {
+                        text_edit->append( text_file.at( i ) );
+                    }
+                }
+                else
+                {
+                    text_edit->append( text_file.at( i ) );
+                }
+            }
+            else
+            {
+                text_edit->append( text_file.at( i ) );
+            }
         }
     }
 
-    int imageH = 0;
-    if( picture_adress != "-" )
-    {
-        QString path_picture = current_adress + picture_adress;
-        QImage image( path_picture );
-        QTextCursor cursor = text_edit->textCursor();
-        QTextDocument *document = text_edit->document();
-        document->addResource(QTextDocument::ImageResource, QUrl(path_picture), image);
-        cursor.insertImage( path_picture );
-        imageH = image.height();
-        //text_edit->append( "Картинка добавлена");
-    }
-
     //Подсчет высоты поля TextEdit
-    int height = QFontMetrics(font_1).boundingRect(QRect( 0, 0, window->width() - layout->contentsRect().left() * 2 , window->height() - layout->contentsRect().bottom() * 2 ), Qt::TextWordWrap, text_edit->toPlainText() ).height() + 10;
+    int height = QFontMetrics(font_1).boundingRect(
+                                                                                    QRect(  0,
+                                                                                                  0,
+                                                                                                  window->width() - layout->contentsRect().left() * 2 - text_edit->verticalScrollBar()->sizeHint().width(),
+                                                                                                  window->height()
+                                                                                                ), Qt::TextJustificationForced, text_edit->toPlainText() ).height() + 10;  //?
 
 //    int all_size_text = 0;
 //    QTextBlock text_block = text_edit->document()->begin();
@@ -415,10 +435,7 @@ void MainWindow::set_TextEdit_in_layout()
 //        text_block = text_block.next();
 //    }
 
-    //text_edit->setMinimumHeight( height  + imageH );
-    //text_edit->setMaximumHeight( height  + imageH );
-    text_edit->setFixedHeight( height + imageH );
-    //text_edit->setFixedHeight( 50 );
+    text_edit->setFixedHeight( height + picture_height );
 
     layout->addWidget( text_edit );
 
@@ -466,12 +483,24 @@ void MainWindow::set_Variant_Answer() //Вывод вариантов ответ
                 QString( "font: " + QString::number(  current_size_pixel_read_text / 3 ) + "pt \"Arial\";"  ) +
                 QString( "background-color: white;" );// +
         text_edit_open_question->setStyleSheet( style );
-        text_edit_open_question->setPlaceholderText( "Введите ответ..." );
+        text_edit_open_question->setPlaceholderText( "Введите ответ в одну строку..." );
+        text_edit_open_question->setMaximumHeight( 30 );
         layout->addWidget( text_edit_open_question );
+
+        QTextEdit *fon = new QTextEdit;
+        fon->setReadOnly( true );
+        fon->setFrameStyle( QFrame::NoFrame );
+        fon->setVerticalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
+        fon->setHorizontalScrollBarPolicy( Qt::ScrollBarAlwaysOff );
+
+        layout->addWidget( fon );
     }
     else
     {
-        QGroupBox *groupBox = new QGroupBox( this );
+        QGroupBox *groupBox = new QGroupBox;
+        groupBox->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Ignored );
+        groupBox->setStyleSheet("QGroupBox { border: 0px;"
+                                                    "border-radius: 0px;}");
 
         QVector< QString > vector_answer_question;
         bool flag_var_otvet = false;
@@ -490,21 +519,17 @@ void MainWindow::set_Variant_Answer() //Вывод вариантов ответ
 
         QFormLayout *form = new QFormLayout;
 
-        form->setRowWrapPolicy ( QFormLayout :: DontWrapRows );
-        form->setFieldGrowthPolicy ( QFormLayout :: FieldsStayAtSizeHint );
-        form->setLabelAlignment ( Qt :: AlignLeft );
-        form->setVerticalSpacing( 3 );
         for( int i = 0; i < count_answer; ++i )
         {
-            QRadioButton *radio1 = new QRadioButton( );
+            QRadioButton *radio1 = new QRadioButton;
 
             QLabel *label = new QLabel;
             label->setWordWrap( true );
-            label->setText( vector_answer_question.at( i ) );
 
             QFont font = label->font();
-            font.setPixelSize( 25 );
+            font.setPixelSize( 20 );
             label->setFont( font );
+            label->setText( vector_answer_question.at( i ) );
 
             form->addRow( radio1, label );
 
@@ -515,6 +540,7 @@ void MainWindow::set_Variant_Answer() //Вывод вариантов ответ
         groupBox->setLayout( form );
 
         layout->addWidget( groupBox );
+
     }
 }
 
@@ -545,7 +571,7 @@ void MainWindow::set_Button_continue() //Установка кнопки "Сле
                                      //"background-color:grey;";
      button->setStyleSheet( font_size );
      button->setText( "Следующий вопрос" );
-     button->setFixedHeight( 25 );
+     button->setMinimumHeight( this->size().height() * 5 / 100 < 25 ? 25 :  this->size().height() * 5 / 100 );
      /* Добавляем кнопку в слой с вертикальной компоновкой
       * */
      layout->addWidget(button);
@@ -573,6 +599,7 @@ double MainWindow::set_Result_Test()
 bool MainWindow::check_Answer_Question()
 {
     bool result = false;
+    QString cur_answ;
     if( vec_ref_rad_but_and_text.size() > 0 )
     { 
         for( const auto& item : vec_ref_rad_but_and_text )
@@ -581,6 +608,8 @@ bool MainWindow::check_Answer_Question()
             {
                 if( item.second == right_answer )
                 {
+                    cur_answ = item.second;
+
                     result = true;
                 }
             }
@@ -590,17 +619,20 @@ bool MainWindow::check_Answer_Question()
     else
     {
 
+        answer_quest = "";
         QTextEdit *open_answer = qobject_cast< QTextEdit *>(  layout->itemAt( 1 )->widget() );
         if( open_answer )
         {
             answer_quest = open_answer->toPlainText();
         }
 
-        if( answer_quest == right_answer )
+        cur_answ = answer_quest;
+        if( answer_quest.toLower() == right_answer.toLower() )
         {
             result = true;
         }
     }
+    map_answer[ current_adress ] = QPair< QString, QString >( cur_answ, right_answer );
     return  result;
 }
 
@@ -612,19 +644,143 @@ void MainWindow::generateWindow_Result()
     this->setWindowTitle( "Результат" );
     delete_Widget_Layout();
 
-    QTextEdit *text_result = new QTextEdit;
+    QFont font;
+    font.setPixelSize( 25 );
 
-    text_result->append( FIO + "\n" );
-    text_result->append( "Ваш результат = " + QString::number( set_Result_Test() ) + "\n" );
+    QLabel *label_fio = new QLabel;
+    label_fio->setFont( font );
+    label_fio->setWordWrap( true );
+    label_fio->setAlignment( Qt::AlignCenter );
+    label_fio->setText( FIO );
+    layout->addWidget( label_fio );
+
+    QLabel *label_result = new QLabel;
+    label_result->setFont( font );
+    label_result->setWordWrap( true );
+    label_result->setAlignment( Qt::AlignCenter );
+    label_result->setText( "Ваш результат = " + QString::number( set_Result_Test() ) );
+    layout->addWidget( label_result );
+
+    QTextEdit *text_result = new QTextEdit;
+    font.setPixelSize( 14 );
+    text_result->setFont( font );
+    text_result->setReadOnly( true );
 
     for( auto it = list_random_question.begin(); it != list_random_question.end(); ++it )
     {
-        text_result->append( it->first + " = " + ( it->second == true ? "Верно" : "Неверно" ) + "\n" );
+        QString current_topic = it->first.mid( it->first.indexOf( '/' ) + 1, it->first.size() - 1 );
+        current_topic = current_topic.mid( 0, current_topic.indexOf( '/') );
+
+        text_result->append( "Тема: " + current_topic + "." );
+
+        text_file = get_QStringList_line_in_text( it->first );
+        QString picture_adress;
+        for( int i = 0; i < text_file.size(); ++i  )
+        {
+            if( text_file.at( i ).indexOf( "Варианты ответов:" ) != -1 )
+            {
+                break;
+            }
+            else if( text_file.at( i ).indexOf( "Адрес картинки:" ) != -1 )
+            {
+                picture_adress = text_file.at( i ).mid( text_file.at( i ).indexOf(":") + 1, text_file.at( i ).size() - 1 - text_file.at( i ).indexOf(":") ).trimmed();
+
+                QString path_picture = it->first + picture_adress;
+                QImage image( path_picture );
+                image_class = new QImage( path_picture );
+                if( !image.isNull() )
+                {
+                    QTextCursor cursor = text_result->textCursor();
+                    QTextDocument *document = text_result->document();
+                    document->addResource(QTextDocument::ImageResource, QUrl(path_picture), image);
+                    cursor.insertImage( path_picture );
+                }
+            }
+            else
+            {
+                if( i != text_file.size() - 1 )
+                {
+                    if( text_file.at( i + 1 ).indexOf( "Адрес картинки:" ) != -1 )
+                    {
+                        picture_adress = text_file.at( i + 1 ).mid( text_file.at( i + 1 ).indexOf(":") + 1, text_file.at( i + 1 ).size() - 1 - text_file.at( i + 1 ).indexOf(":") ).trimmed();
+                        QString path_picture = current_adress + picture_adress;
+                        QImage image( path_picture );
+                        if( !image.isNull() )
+                        {
+                            text_result->append( text_file.at( i ) + "\n" );
+                        }
+                        else
+                        {
+                            text_result->append( text_file.at( i ) );
+                        }
+                    }
+                    else
+                    {
+                        text_result->append( text_file.at( i ) );
+                    }
+                }
+                else if( i != 0 )
+                {
+                    if( text_file.at( i - 1 ).indexOf( "Адрес картинки:" ) != -1 )
+                    {
+                        picture_adress = text_file.at( i + 1 ).mid( text_file.at( i + 1 ).indexOf(":") + 1, text_file.at( i + 1 ).size() - 1 - text_file.at( i + 1 ).indexOf(":") ).trimmed();
+                        QString path_picture = current_adress + picture_adress;
+                        QImage image( path_picture );
+
+                        if( !image.isNull() )
+                        {
+                            text_result->append( "\n" + text_file.at( i ) );
+                        }
+                        else
+                        {
+                            text_result->append( text_file.at( i ) );
+                        }
+                    }
+                    else
+                    {
+                        text_result->append( text_file.at( i ) );
+                    }
+                }
+                else
+                {
+                    text_result->append( text_file.at( i ) );
+                }
+            }
+        }
+
+
+        QTextCharFormat fmt = text_result->currentCharFormat();
+        QPair< QString, QString > pa = map_answer.take( it->first );
+        text_result->append("\nВаш ответ: " +  pa.first );
+        text_result->append( "Правильный ответ: " + pa.second );
+        if( it->second )
+        {
+            fmt.setForeground( QBrush( Qt::green ) );
+            text_result->setCurrentCharFormat( fmt );
+            text_result->append( "Верно\n" );
+        }
+        else
+        {
+            fmt.setForeground( QBrush( Qt::red ) );
+            text_result->setCurrentCharFormat( fmt );
+            text_result->append( "Неверно\n" );
+        }
+
+        fmt = text_result->currentCharFormat();
+        fmt.clearForeground();
+        text_result->setCurrentCharFormat( fmt );
+
+        text_result->append( "" );
     }
+
+    QTextCursor textCursor = text_result->textCursor();
+    textCursor.movePosition(QTextCursor::Start, QTextCursor::MoveAnchor,1);
+    text_result->setTextCursor(textCursor);
 
     layout->addWidget( text_result );
 
     map_topic.clear();
+    map_answer.clear();
     list_random_question.clear();
 
 
@@ -637,6 +793,11 @@ void MainWindow::delete_Widget_Layout()
     QLayout* scrollLayout = layout;
     while (QLayoutItem* item = scrollLayout->takeAt(0))
     {
+        QGroupBox *gp = qobject_cast< QGroupBox *>( item->widget() );
+        if( gp )
+        {
+            qDeleteAll( gp->findChildren<QWidget*>() );
+        }
         delete item->widget();
         delete item;
     }
@@ -719,9 +880,14 @@ void MainWindow::resizeEvent(QResizeEvent *e)
     }
     else if( flag_instuction_window )
     {
-         resizeInstructWin_instuction_te( e );
+        resizeInstructWin_instuction_te( e );
         resizeInstructWin_count_te( e );
         resizeInstructWin_start_pb( e );
+    }
+    else if( flag_test_window )
+    {
+        resizeTestWin_text_question( e );
+        resizeTestWin_contpb( e );
     }
 }
 
@@ -731,19 +897,7 @@ void MainWindow::resizeInpWin_welcom_te( QResizeEvent *e )
 {
     QTextEdit *wte =  qobject_cast<QTextEdit *>( layout->itemAt( 0 )->widget() );
 
-//    QString setHTML_properties = "font: " + QString::number(  wte->height() / 5 / 3  ) + "pt \"Arial\";" +
-//                                                        "background-color:white;" +
-//                                                        "position: absolute;" +
-//                                                        "left: 50%;" +
-//                                                        "top: 50%;" +
-//                                                        "-webkit-transform: translate(-50%, -50%);" +
-//                                                        "-moz-transform: translate(-50%, -50%);" +
-//                                                        "-ms-transform: translate(-50%, -50%);" +
-//                                                        "-o-transform: translate(-50%, -50%);" +
-//                                                        "transform: translate(-50%, -50%);" +
-//                                                        "";
 
-    QSize t2 = wte->size();
     current_size_pixel_read_text = wte->height() / 5 / 3;
     //QString str = QString("st") + QString( "fdf");
     QString style =
@@ -803,7 +957,7 @@ void MainWindow::resizeInstructWin_instuction_te( QResizeEvent *e )
     //ite->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     ite->setPlainText( Instruction );
-    ite->setAlignment( Qt::AlignCenter );
+    //ite->setAlignment( Qt::AlignCenter );
 }
 //Функция перерисовка поля ввода количества вопросов
 void MainWindow::resizeInstructWin_count_te( QResizeEvent *e )
@@ -832,51 +986,108 @@ void MainWindow::resizeInstructWin_start_pb( QResizeEvent *e )
 
 //Функции перерисовки окон теста
 //Функия перерисовки поля вопроса
-void MainWindow::resizeTestWin_text_question()
+void MainWindow::resizeTestWin_text_question( QResizeEvent *e )
 {
-    QTextEdit *text_question = qobject_cast< QTextEdit *>( layout->itemAt( 0 )->widget() );
-    if( text_question )
+//    QTextEdit *text_edit = qobject_cast< QTextEdit *>( layout->itemAt( 0 )->widget() );
+//    text_edit->clear();
+//    QString picture_adress;
+//    int old_pix = text_edit->font().pixelSize();
+//    int ez = e->size().height();
+
+//    QFont font;
+//    font.setPixelSize(  e->size().height() * 5 / 100 < 25 ?
+//                                        25 :  e->size().height() * 5 / 100  > 40 ? 40 : e->size().height() );
+//    //text_edit->setFont( font );
+
+//    text_edit->append("Тема: " + topic_in_directory +"." );
+//    QImage image;
+//    for( int i = 0; i < text_file.size(); ++i  )
+//    {
+//        if( text_file.at( i ).indexOf( "Варианты ответов:" ) != -1 )
+//        {
+//            break;
+//        }
+//        else if( text_file.at( i ).indexOf( "Адрес картинки:" ) != -1 )
+//        {
+//            picture_adress = text_file.at( i ).mid( text_file.at( i ).indexOf(":") + 1, text_file.at( i ).size() - 1 - text_file.at( i ).indexOf(":") ).trimmed();
+
+//            QString path_picture = current_adress + picture_adress;
+//            int razn_w = image_class->width() + e->size().width() -e->oldSize().width();
+//            int razn_h = image_class->height() + e->size().height() -e->oldSize().height();
+//            image = image_class->scaled(
+//                                                                QSize(
+//                                                                            razn_w < image_class->width() ?
+//                                                                                image_class->width() : razn_w > image_class->width() * 2 ?
+//                                                                                    image_class->width() * 2 : razn_w,
+//                                                                            razn_h < image_class->height() ?
+//                                                                                image_class->height() : razn_h > image_class->height() * 2 ?
+//                                                                                    image_class->height() * 2 : razn_h ),
+//                                                                Qt::IgnoreAspectRatio );
+//            //image_class->scaled( QSize( image_class->width() *2,  image_class->height() *2 ), Qt::IgnoreAspectRatio );
+//            image_class = new QImage( path_picture );
+//            if( !image_class->isNull() )
+//            {
+//                QTextCursor cursor = text_edit->textCursor();
+//                QTextDocument *document = text_edit->document();
+//                document->addResource(QTextDocument::ImageResource, QUrl(path_picture), image);
+//                cursor.insertImage( path_picture );
+//            }
+//        }
+//        else
+//        {
+//            if( i != text_file.size() - 1 )
+//            {
+//                if( text_file.at( i + 1 ).indexOf( "Адрес картинки:" ) != -1 )
+//                {
+//                    picture_adress = text_file.at( i + 1 ).mid( text_file.at( i + 1 ).indexOf(":") + 1, text_file.at( i + 1 ).size() - 1 - text_file.at( i + 1 ).indexOf(":") ).trimmed();
+//                    QString path_picture = current_adress + picture_adress;
+//                    QImage image( path_picture );
+//                    if( !image.isNull() )
+//                    {
+//                        text_edit->append( text_file.at( i ) + "\n" );
+//                    }
+//                    else
+//                    {
+//                        text_edit->append( text_file.at( i ) );
+//                    }
+//                }
+//                else
+//                {
+//                    text_edit->append( text_file.at( i ) );
+//                }
+//            }
+//            else
+//            {
+//                text_edit->append( text_file.at( i ) );
+//            }
+//        }
+//    }
+
+    //Подсчет высоты поля TextEdit
+    QTextEdit *text_edit = qobject_cast< QTextEdit *>( layout->itemAt( 0 )->widget() );
+    int height = QFontMetrics( text_edit->font() ).boundingRect(
+                                                                                    QRect(  0,
+                                                                                                  0,
+                                                                                                  window->width() - layout->contentsRect().left() * 2 - text_edit->verticalScrollBar()->sizeHint().width(),
+                                                                                                  window->height()
+                                                                                                ), Qt::TextJustificationForced, text_edit->toPlainText() ).height() + 10;  //?
+
+
+    text_edit->setFixedHeight( height + image_class->height() );
+}
+
+
+//Функция перерисовки кнопки теста
+void MainWindow::resizeTestWin_contpb( QResizeEvent *e )
+{
+    QPushButton *pb = qobject_cast< QPushButton* >( layout->itemAt( 2 )->widget() );
+    if( pb )
     {
-        int all_size_text = 0;
+        pb->setMinimumHeight( e->size().height() * 5 / 100 < 25 ? 25 :  e->size().height() * 5 / 100 );
 
-        QTextBlock text_block = text_question->document()->begin();
-        while( text_block.isValid() )
-        {
-            int max_ascent  = 0;
-            int max_descent = 0;
-            int max_leading = 0;
-
-            int max_height = 0;
-
-            for (QTextBlock::Iterator fragment_it = text_block.begin(); !(fragment_it.atEnd()); ++fragment_it)
-            {
-            QTextFragment fragment = fragment_it.fragment();
-            QTextCharFormat fragment_format = fragment.charFormat();
-            QFont fragment_font = fragment_format.font();
-            QFontMetrics fragment_font_metrics (fragment_font);
-            max_ascent  = std::max(fragment_font_metrics.ascent(), max_ascent);
-            max_descent = std::max(fragment_font_metrics.descent(),max_descent);
-
-            int current_height = fragment_font_metrics.height();
-            int current_leading = fragment_font_metrics.leading();
-                if ( current_height > max_height )
-                {
-                    max_height = current_height;
-                    max_leading = current_leading;
-                }
-                else if ( current_height == max_height && current_leading > max_leading )
-                {
-                    max_leading = current_leading;
-                }
-            }
-            int max_size =  max_ascent + max_descent + max_leading + 1; // + 1 for the baseline
-            all_size_text += max_size;
-
-            text_block = text_block.next();
-        }
-         int a = 0;
+        QString font_size = "font: " + QString::number( ( e->size().height() * 5 / 100 < 25 ? 25 :  e->size().height() * 5 / 100 ) * 1 / 2 - 1 ) + "pt \"Arial\";";
+        pb->setStyleSheet( font_size );
     }
-
 }
 
 
@@ -923,7 +1134,7 @@ void MainWindow::on_pushButton_Start_Test_clicked()
         //Запускаем тест
         flag_instuction_window = false;
         generateWindow_Test();
-
+        flag_test_window = true;
     }
 }
 
@@ -932,4 +1143,5 @@ void MainWindow::on_pushButton_Start_Test_clicked()
 void MainWindow::on_pushButton_give_answer()
 {
     generateWindow_Test();
+    //window->show();
 }
