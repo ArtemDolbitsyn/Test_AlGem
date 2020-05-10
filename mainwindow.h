@@ -49,7 +49,6 @@ private:
     QString get_Adress_Random_Question();
     QStringList get_QStringList_line_in_text( const QString& adress );
     void set_TextEdit_in_layout(); //Вывод текста вопроса на экран
-    void set_PixMap_in_layout(); //Вывод картинки на экран( если она есть)
     void set_Variant_Answer(); //Вывод вариантов ответа( открытый закрытый вопрос )
     void set_Right_Answer(); //Установка правильного ответа в строку
     void set_Button_continue(); //Установка кнопки "Следующий вопрос
@@ -83,17 +82,16 @@ private:
     QWidget *window = new QWidget; //Само окно
     QVBoxLayout *layout = new QVBoxLayout;
 
-
-
+    //Флаги окон теста для отлова события перерисовки
     bool flag_input_window = false;
     bool flag_instuction_window = false;
     bool flag_test_window = false;
+    bool flag_result_window = false;
 
     QString FIO;
     QString Instruction;
 
-
-    QMap< QString, QSet< QString > > map_topic; //мапа тем
+    QMap< QString, QSet< QString > > map_topic; //мапа тем с вопросами
     int all_count_question_in_directory = 0; //общее количество вопросов
 
     int current_count_question; //количество вопросов в создаваемом тесте
@@ -103,18 +101,22 @@ private:
 
     QString topic_in_directory;
     QString current_adress;
-    //QMap< QString, QString > map_random_question; //мапа рандомных вопросов генерируемых в тесте c ответам
-    QList< QPair< QString, bool > > list_random_question;
-    QMap< QString, QPair< QString, QString > > map_answer;
-    QImage *image_class;
+
+    QList< QPair< QString, bool > > list_random_question; //Текущий лист рандомных вопросов
+    QMap< QString, QPair< QString, QString > > map_answer; // Map с ответами на текущий тест
+
+    QImage image_class; //Сохранена текущая картинка
+    int image_c_min_w = 0;
+    int image_c_min_h = 0;
+    int image_c_max_w = 0;
+    int image_c_max_h = 0;
 
     QStringList text_file; //лист строк в файле
 
-    //QVector< QRadioButton* > vec_ref_rad_but;
-    QVector< QPair < QRadioButton*, QString > > vec_ref_rad_but_and_text;
-    QString answer_quest;
+    QVector< QPair < QRadioButton*, QString > > vec_ref_rad_but_and_text; //Вектор радиобаттонов для варианта ответов
+    QString answer_quest; //Строка для открытого отвеа
 
     //Поле размера пикселей для читаемого текста
-    int current_size_pixel_read_text;
+    int current_size_pixel_read_text; //Сохранение размеров текста для следующего вопроса
 };
 #endif // MAINWINDOW_H

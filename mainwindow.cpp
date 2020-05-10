@@ -25,23 +25,61 @@ MainWindow::~MainWindow()
 //Генерация окна входа
 void MainWindow::generateWindow_Input()
 {
-
     this->setWindowTitle("Вход");
 
     QTextEdit *text_welcom = new QTextEdit();
     text_welcom->setReadOnly( true );
+    text_welcom->setAlignment( Qt::AlignCenter );
+    text_welcom->setFrameStyle( QFrame::NoFrame );
+    text_welcom->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    current_size_pixel_read_text = window->height() / 5 / 3;
+    QString style =
+            QString( "font: " + QString::number(  current_size_pixel_read_text ) + "pt \"Arial\";"  ) +
+            QString( "background-color: white;" );
+    text_welcom->setStyleSheet ( style );
+    text_welcom->append( "\nДобро пожаловать на тест по алгебре и аналитической геометрии!");
+    QString path_picture = "Вопросы/Картинка";
+    //QImage image( path_picture );
+    image_class = QImage( path_picture );
+
+    image_c_min_w = image_class.width();
+    image_c_min_h = image_class.height();
+    image_c_max_w = image_class.width() * 2;
+    image_c_max_h = image_class.height() * 2;
+
+    if( !image_class.isNull() )
+    {
+        text_welcom->append( "" );
+        QTextCursor cursor = text_welcom->textCursor();
+        //QTextDocument *document = text_welcom->document();
+        QImage image = image_class;
+        //document->addResource(QTextDocument::ImageResource, QUrl(path_picture), image);
+        cursor.insertImage( image );
+    }
 
     QTextEdit *text_fio = new QTextEdit;
+    text_fio->setMinimumHeight( 25 );
+    text_fio->setMaximumHeight( 35 );
+
+    QString font_size = "font: " + QString::number( 15 ) + "pt \"Arial\";";
+    text_fio->setStyleSheet( font_size );
+
+    text_fio->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    text_fio->setPlaceholderText( "Введите ФИО..." );
 
     QPushButton* pushButtom_continue = new QPushButton( tr("Продолжить") );
     connect(pushButtom_continue, SIGNAL(clicked()), this, SLOT( on_pushButton_continue_clicked()));
+
+    pushButtom_continue->setMinimumHeight( 35 );
+
+    QString font_size_button = "font: " + QString::number( 15 ) + "pt \"Arial\";";
+    pushButtom_continue->setStyleSheet( font_size_button );
 
     layout->addWidget( text_welcom );
     layout->addWidget( text_fio );
     layout->addWidget( pushButtom_continue );
 
-
-    flag_input_window = true;
     QTextEdit *te =  qobject_cast<QTextEdit *>( layout->itemAt(1)->widget() );
     te->installEventFilter( this );
 
@@ -141,22 +179,6 @@ QTextEdit* MainWindow::get_TextEdit_Instruction()
 {
     QTextEdit *result_text_instruction = new QTextEdit; //Создаем текстовое поле и загружаем в него инструкцию из файла
 
-    QFile file( "Вопросы/Инструкция.txt" );
-    if( file.open( QIODevice::ReadOnly ) )
-    {
-        QTextStream in( &file );
-        while ( !in.atEnd() )
-        {
-            QString line = in.readLine();
-            Instruction += line;
-            //result_text_instruction->append( line );
-        }
-        file.close();
-    }
-    else
-    {
-        Instruction = "Инструкция не найдена";
-    }
 
     QString setHTML_properties = "font: " + QString::number(  this->size().height() * 5 / 100 < 25 ? 25 :  this->size().height() * 3 / 100  ) + "pt \"Arial\";" +
                                                         "background-color:white;" +
@@ -168,9 +190,30 @@ QTextEdit* MainWindow::get_TextEdit_Instruction()
                                                         "";
     result_text_instruction->setStyleSheet( setHTML_properties );
     result_text_instruction->setFrameStyle( QFrame::NoFrame );
-    result_text_instruction->setAlignment( Qt::AlignCenter );
-    result_text_instruction->setText( Instruction );
+    //result_text_instruction->setAlignment( Qt::AlignCenter );
+   // result_text_instruction->setText( Instruction );
     result_text_instruction->setReadOnly( true );
+
+    QFile file( "Вопросы/Инструкция.txt" );
+    if( file.open( QIODevice::ReadOnly ) )
+    {
+        QTextStream in( &file );
+        while ( !in.atEnd() )
+        {
+            QString line = in.readLine();
+            if( !line.isEmpty() )
+                result_text_instruction->append( line );
+            //Instruction += line;
+            //result_text_instruction->append( line );
+        }
+        file.close();
+    }
+    else
+    {
+        result_text_instruction->append( "Инструкция не найдена" );
+        //Instruction = "Инструкция не найдена";
+    }
+
     return result_text_instruction;
 }
 
@@ -251,6 +294,7 @@ void MainWindow::generateWindow_Test()
     else
     {
         flag_test_window = false;
+        flag_result_window = true;
         generateWindow_Result();
     }
 }
@@ -310,7 +354,7 @@ QStringList MainWindow::get_QStringList_line_in_text(const QString &adress)
         while ( !in.atEnd() )
         {
             QString line = in.readLine();
-            result.push_back( line );
+            result.push_back( line.trimmed() );
         }
         file.close();
     }
@@ -340,10 +384,8 @@ void MainWindow::set_TextEdit_in_layout()
     text_edit->setFont( font_1 );
 
     text_edit->setFrameStyle( QFrame::NoFrame );
-    //text_edit->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     text_edit->setReadOnly( true );
 
-    //text_edit->append("Тема: " + topic_in_directory +"." );
     for( int i = 0; i < text_file.size(); ++i  )
     {
         if( text_file.at( i ).indexOf( "Варианты ответов:" ) != -1 )
@@ -355,16 +397,22 @@ void MainWindow::set_TextEdit_in_layout()
             picture_adress = text_file.at( i ).mid( text_file.at( i ).indexOf(":") + 1, text_file.at( i ).size() - 1 - text_file.at( i ).indexOf(":") ).trimmed();
 
             QString path_picture = current_adress + picture_adress;
-            QImage *image = new QImage( path_picture );
-            image_class = new QImage( path_picture );
-            if( !image->isNull() )
+            //QImage image( path_picture );
+            image_class = QImage( path_picture );
+
+            image_c_min_w = image_class.width();
+            image_c_min_h = image_class.height();
+            image_c_max_w = image_class.width() * 2;
+            image_c_max_h = image_class.height() * 2;
+
+            if( !image_class.isNull() )
             {
                 text_edit->append( "" );
                 QTextCursor cursor = text_edit->textCursor();
-                QTextDocument *document = text_edit->document();
-                document->addResource(QTextDocument::ImageResource, QUrl(path_picture), *image);
+                //QTextDocument *document = text_edit->document();
+                //document->addResource(QTextDocument::ImageResource, QUrl(path_picture), image_class);
                 cursor.insertImage( path_picture );
-                picture_height = image->height();
+                picture_height = image_class.height();
             }
         }
         else
@@ -387,28 +435,6 @@ void MainWindow::set_TextEdit_in_layout()
 
 }
 
-
-void MainWindow::set_PixMap_in_layout() //Вывод картинки на экран( если она есть)
-{
-    //ДОБАВЛЕНИЕ КАРТИНКИ НА ФОРМУ( ЕСЛИ НАДО )
-    QString picture_adress = "";
-    for( const auto& tmp : text_file )
-    {
-        if( tmp.indexOf( "Адрес картинки:" ) != -1 )
-        {
-            picture_adress = tmp.mid( tmp.indexOf(":") + 1, tmp.size() - 1 - tmp.indexOf(":") ).trimmed();
-            break;
-        }
-    }
-    if( picture_adress != "" )
-    {
-       QString path_picture = current_adress + picture_adress;
-       QPixmap myPixmap( path_picture );
-       QLabel *myLabel = new QLabel( this );
-       myLabel->setPixmap( myPixmap );
-       layout->addWidget( myLabel );
-    }
-}
 
 //ДОБАВЛЕНИЕ ВАРИАНТОВ ОТВЕТА
 void MainWindow::set_Variant_Answer() //Вывод вариантов ответа( открытый закрытый вопрос )
@@ -574,7 +600,9 @@ bool MainWindow::check_Answer_Question()
         }
 
         cur_answ = answer_quest;
-        if( answer_quest.toLower().trimmed() == right_answer.toLower().trimmed() )
+
+        QRegExp val("[ ,.;!?]");
+        if( answer_quest.toLower().trimmed().remove( val ) == right_answer.toLower().trimmed().remove( val ) )
         {
             result = true;
         }
@@ -783,7 +811,6 @@ void MainWindow::resizeEvent(QResizeEvent *e)
         resizeInpWin_welcom_te( e );
         resizeInpWin_fio_te( e );
         resizeInpWin_continue_pb( e );
-
     }
     else if( flag_instuction_window )
     {
@@ -796,6 +823,11 @@ void MainWindow::resizeEvent(QResizeEvent *e)
         resizeTestWin_text_question( e );
         resizeTestWin_contpb( e );
     }
+
+    if( !flag_input_window && !flag_instuction_window && !flag_test_window && !flag_result_window )
+    {
+            flag_input_window = true;
+    }
 }
 
 //Функции перерисовки окна входа
@@ -803,24 +835,43 @@ void MainWindow::resizeEvent(QResizeEvent *e)
 void MainWindow::resizeInpWin_welcom_te( QResizeEvent *e )
 {
     QTextEdit *wte =  qobject_cast<QTextEdit *>( layout->itemAt( 0 )->widget() );
-
-
-    current_size_pixel_read_text = wte->height() / 5 / 3;
-    //QString str = QString("st") + QString( "fdf");
-    QString style =
-            QString( "font: " + QString::number(  current_size_pixel_read_text ) + "pt \"Arial\";"  ) +
-            QString( "background-color: white;" );// +
-            //QString( "background-image: url( Вопросы/Картинка.jpg);" );
-            //QString( "background-attachment: scroll;" );
-    wte->setStyleSheet ( style );
-    wte->setPlainText( "Добро пожаловать!");
-   // wte->setStyleSheet( setHTML_properties );
+    wte->clear();
+    wte->setReadOnly( true );
+    wte->setAlignment( Qt::AlignCenter );
     wte->setFrameStyle( QFrame::NoFrame );
     wte->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
+    current_size_pixel_read_text = window->height() / 5 / 3;
+    QString style =
+            QString( "font: " + QString::number(  current_size_pixel_read_text ) + "pt \"Arial\";"  ) +
+            QString( "background-color: white;" );
+    wte->setStyleSheet ( style );
+    wte->append( "\nДобро пожаловать на тест по алгебре и аналитической геометрии!");
 
-    wte->setAlignment( Qt::AlignCenter );
+    if( !image_class.isNull() )
+    {
+        wte->append( "" );
+        QTextCursor cursor = wte->textCursor();
+        //QTextDocument *document = wte->document();
+
+        QImage image = image_class;
+        //document->addResource(QTextDocument::ImageResource, QUrl(path_picture), image);
+        if( image.width() + ( e->size().width() - e->oldSize().width() ) < image_c_min_w || image.height() + ( e->size().height() - e->oldSize().height() ) < image_c_min_h )
+        {
+            image = image.scaled( QSize( image_c_min_w, image_c_min_h ), Qt::KeepAspectRatio );
+        }
+         else if ( image.width() + ( e->size().width() - e->oldSize().width() ) > image_c_max_w || image.height() + ( e->size().height() - e->oldSize().height() ) > image_c_max_h )
+        {
+            image = image.scaled( QSize( image_c_max_w, image_c_max_h ), Qt::KeepAspectRatio );
+        }
+        else
+        {
+            image = image.scaled( QSize( image.width() + ( e->size().width() - e->oldSize().width() ) , image.height() + ( e->size().height() - e->oldSize().height() ) ), Qt::KeepAspectRatio );
+        }
+        cursor.insertImage( image );
+    }
 }
+
 //Перерисовка поля ввода ФИО(второе)
 void MainWindow::resizeInpWin_fio_te( QResizeEvent *e )
 {
@@ -832,8 +883,8 @@ void MainWindow::resizeInpWin_fio_te( QResizeEvent *e )
     QString font_size = "font: " + QString::number( ( e->size().height() * 5 / 100 < 25 ? 25 :  e->size().height() * 5 / 100 ) * 1 / 2 - 1 ) + "pt \"Arial\";";
     te->setStyleSheet( font_size );
 
-    te->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    te->setPlaceholderText( "Введите ФИО..." );
+    //te->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    //te->setPlaceholderText( "Введите ФИО..." );
 }
 //Перерисовка кнопки "Продолжить"
 void MainWindow::resizeInpWin_continue_pb( QResizeEvent *e )
@@ -850,21 +901,27 @@ void MainWindow::resizeInpWin_continue_pb( QResizeEvent *e )
 void MainWindow::resizeInstructWin_instuction_te( QResizeEvent *e )
 {
     QTextEdit *ite =  qobject_cast<QTextEdit *>( layout->itemAt( 0 )->widget() );
-
-    QString setHTML_properties = "font: " + QString::number(  e->size().height() * 5 / 100 < 25 ? 25 :  e->size().height() * 3 / 100  ) + "pt \"Arial\";" +
-                                                        "background-color:white;" +
-                                                        "" +
-                                                        "" +
-                                                        "" +
-                                                        "" +
-                                                        "" +
-                                                        "";
+    ite->clear();
+    QString setHTML_properties = "font: " + QString::number(  e->size().height() * 5 / 100 < 25 ? 25 :  e->size().height() * 3 / 100  ) + "pt \"Arial\";";
     ite->setStyleSheet( setHTML_properties );
     ite->setFrameStyle( QFrame::NoFrame );
-    //ite->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    ite->setPlainText( Instruction );
-    //ite->setAlignment( Qt::AlignCenter );
+    QFile file( "Вопросы/Инструкция.txt" );
+    if( file.open( QIODevice::ReadOnly ) )
+    {
+        QTextStream in( &file );
+        while ( !in.atEnd() )
+        {
+            QString line = in.readLine();
+            if( !line.isEmpty() )
+                ite->append( line );
+        }
+        file.close();
+    }
+    else
+    {
+        ite->append( "Инструкция не найдена" );
+    }
 }
 //Функция перерисовка поля ввода количества вопросов
 void MainWindow::resizeInstructWin_count_te( QResizeEvent *e )
@@ -904,8 +961,9 @@ void MainWindow::resizeTestWin_text_question( QResizeEvent *e )
                                                                                                   window->height()
                                                                                                 ), Qt::TextJustificationForced, text_edit->toPlainText() ).height() + 10;  //?
 
+    //image_class.size().setWidth( image_class.width() + ( e->size().width() - e->oldSize().width() ) > image_c_max_w ); пересчет высоты картинки для экрана
 
-    text_edit->setFixedHeight( height + image_class->height() );
+    text_edit->setFixedHeight( height + image_class.height() );
 }
 
 
