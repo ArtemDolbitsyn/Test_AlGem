@@ -354,7 +354,8 @@ QStringList MainWindow::get_QStringList_line_in_text(const QString &adress)
         while ( !in.atEnd() )
         {
             QString line = in.readLine();
-            result.push_back( line.trimmed() );
+            if( !line.isEmpty() )
+                result.push_back( line.trimmed() );
         }
         file.close();
     }
@@ -650,6 +651,8 @@ void MainWindow::generateWindow_Result()
         QString current_topic = it->first.mid( it->first.indexOf( '/' ) + 1, it->first.size() - 1 );
         current_topic = current_topic.mid( 0, current_topic.indexOf( '/') );
 
+
+        text_result->append("Вопрос: " + QString::number( current_q ) + "/" + QString::number( all_count_q ) );
         text_result->append( "Тема: " + current_topic + "." );
 
         text_file = get_QStringList_line_in_text( it->first );
@@ -684,7 +687,6 @@ void MainWindow::generateWindow_Result()
 
 
         QPair< QString, QString > pa = map_answer.take( it->first );
-        text_result->append("\nВопрос: " + QString::number( current_q ) + "/" + QString::number( all_count_q ) );
         text_result->append("Ваш ответ: " +  pa.first );
         text_result->append( "Правильный ответ: " + pa.second );
         QTextCharFormat fmt = text_result->currentCharFormat();
